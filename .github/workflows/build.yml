@@ -1,0 +1,59 @@
+name: Build 3105 Custom IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract project
+        run: |
+          unzip 3105Custom-Projeto.zip -d source
+          cd source
+          cat > project.yml <<'EOF'
+          name: 3105Custom
+          options:
+            deploymentTarget:
+              iOS: "17.0"
+          targets:
+            3105Custom:
+              type: application
+              platform: iOS
+              sources:
+                - path: 3105Custom
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.example.3105custom
+                  INFOPLIST_FILE: 3105Custom/Info.plist
+                  SWIFT_VERSION: "5.0"
+                  TARGETED_DEVICE_FAMILY: "1,2"
+          EOF
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build IPA
+        run: |
+          cd source
+          xcodegen generate
+          xcodebuild -project 3105Custom.xcodeproj \
+            -scheme 3105Custom \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/3105.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO
+          mkdir -p Payload
+          cp -R build/3105.xcarchive/Products/Applications/3105Custom.app Payload/
+          zip -r 3105Custom.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3105Custom-IPA
+          path: source/3105Custom.ipa
